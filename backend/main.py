@@ -5,7 +5,7 @@ from routers import scanner, dns, ai, reports
 app = FastAPI(
     title="AuditX API",
     description="Backend da plataforma AuditX — Ferramenta de Testes de Segurança",
-    version="0.1.0"
+    version="0.1.1"
 )
 
 # CORS — permite o frontend React comunicar com o backend
