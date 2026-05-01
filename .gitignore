@@ -1,0 +1,19 @@
+# Frontend
+node_modules/
+dist/
+.DS_Store
+
+# Backend
+backend/venv/
+backend/.env
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Reports gerados
+/tmp/auditx_reports/
+
+# IDE
+.vscode/
+.idea/
