@@ -52,7 +52,7 @@ export default function Layout() {
         {/* Footer */}
         <div className="p-4 border-t border-dark-700">
           <p className="text-xs text-slate-600 font-mono text-center">
-            AuditX v0.1.1 — PIEI-22
+            AuditX v0.1.2 — PIEI-22
           </p>
         </div>
       </aside>
