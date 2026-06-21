@@ -29,6 +29,8 @@ import DNS            from './pages/DNS'
 import CommandBuilder from './pages/CommandBuilder'
 import AIAnalyzer     from './pages/AIAnalyzer'
 import Reports        from './pages/Reports'
+import Headers        from './pages/Headers'
+import NotFound       from './pages/NotFound'
 
 export default function App() {
   return (
@@ -47,6 +49,9 @@ export default function App() {
           <Route path="command-builder"    element={<CommandBuilder />} />
           <Route path="ai-analyzer"        element={<AIAnalyzer />}     />
           <Route path="reports"            element={<Reports />}        />
+          <Route path="headers"            element={<Headers />}        />
+          {/* catch-all — qualquer URL desconhecido */}
+          <Route path="*"                  element={<NotFound />}       />
         </Route>
       </Routes>
     </BrowserRouter>

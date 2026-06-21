@@ -81,5 +81,15 @@ export const analyzeOutput = (tool, output) =>
 export const generateReport = (data) =>
   api.post('/reports/generate', data, { responseType: 'blob' })
 
+// ── checkHeaders ──────────────────────────────────────────────────────────────
+// Avalia os cabeçalhos de segurança HTTP de um URL.
+//
+// Parâmetros:
+//   url (string): URL alvo (tem de começar por http:// ou https://)
+//
+// Devolve: Promise com a resposta Axios (res.data contém a avaliação e a nota)
+export const checkHeaders = (url) =>
+  api.post('/headers/check', { url })
+
 // Exportação da instância base para uso direto nos componentes se necessário
 export default api

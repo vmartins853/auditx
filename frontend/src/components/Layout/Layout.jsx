@@ -1,18 +1,21 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import {
-  Shield, Scan, Globe, Terminal, Brain, FileText
+  Shield, Scan, Globe, Terminal, Brain, FileText, ShieldCheck
 } from 'lucide-react'
+import ErrorBoundary from '../ErrorBoundary'
 
 const navItems = [
   { to: '/',                label: 'Dashboard',       icon: Shield },
   { to: '/scanner',         label: 'Port Scanner',    icon: Scan },
   { to: '/dns',             label: 'DNS Recon',       icon: Globe },
+  { to: '/headers',         label: 'Security Headers', icon: ShieldCheck },
   { to: '/command-builder', label: 'Command Builder', icon: Terminal },
   { to: '/ai-analyzer',     label: 'AI Analyzer',     icon: Brain },
   { to: '/reports',         label: 'Reports',         icon: FileText },
 ]
 
 export default function Layout() {
+  const location = useLocation()
   return (
     <div className="flex h-screen bg-dark-900 overflow-hidden">
       {/* Sidebar */}
@@ -52,14 +55,17 @@ export default function Layout() {
         {/* Footer */}
         <div className="p-4 border-t border-dark-700">
           <p className="text-xs text-slate-600 font-mono text-center">
-            AuditX v0.1.2 — PIEI-22
+            AuditX v{__APP_VERSION__} — PIEI-22
           </p>
         </div>
       </aside>
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
-        <Outlet />
+        {/* resetKey limpa o erro ao mudar de rota, permitindo recuperar */}
+        <ErrorBoundary resetKey={location.pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </div>
   )

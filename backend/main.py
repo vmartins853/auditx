@@ -13,8 +13,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# Versão centralizada (fonte única em version.py)
+from version import __version__
+
 # Importação dos routers de cada módulo da aplicação
-from routers import scanner, dns, ai, reports
+from routers import scanner, dns, ai, reports, headers
 
 # ── Inicialização da aplicação FastAPI ────────────────────────────────────────
 # O FastAPI gera automaticamente documentação interativa em:
@@ -23,7 +26,7 @@ from routers import scanner, dns, ai, reports
 app = FastAPI(
     title="AuditX API",
     description="Backend da plataforma AuditX — Ferramenta de Testes de Segurança",
-    version="0.1.1"
+    version=__version__
 )
 
 # ── Configuração do CORS ──────────────────────────────────────────────────────
@@ -56,6 +59,7 @@ app.include_router(scanner.router, prefix="/api/scanner", tags=["Scanner"])
 app.include_router(dns.router,     prefix="/api/dns",     tags=["DNS Recon"])
 app.include_router(ai.router,      prefix="/api/ai",      tags=["AI Analyzer"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
+app.include_router(headers.router, prefix="/api/headers", tags=["Security Headers"])
 
 
 # ── Endpoint de verificação de estado ─────────────────────────────────────────
@@ -64,4 +68,4 @@ app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 #   {"status": "AuditX API online", "version": "0.1.0"}
 @app.get("/")
 def root():
-    return {"status": "AuditX API online", "version": "0.1.0"}
+    return {"status": "AuditX API online", "version": __version__}

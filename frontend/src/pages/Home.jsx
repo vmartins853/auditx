@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Scan, Globe, Terminal, Brain, FileText, Shield } from 'lucide-react'
+import { Scan, Globe, Terminal, Brain, FileText, Shield, ShieldCheck } from 'lucide-react'
 
 const modules = [
   {
@@ -17,6 +17,14 @@ const modules = [
     desc: 'Enumeração de subdomínios e registos DNS de um domínio alvo.',
     color: 'text-yellow-400',
     bg: 'bg-yellow-400/10 border-yellow-400/20',
+  },
+  {
+    to: '/headers',
+    icon: ShieldCheck,
+    title: 'Security Headers',
+    desc: 'Avalia os cabeçalhos de segurança HTTP de um site e atribui uma nota A–F.',
+    color: 'text-cyan-400',
+    bg: 'bg-cyan-400/10 border-cyan-400/20',
   },
   {
     to: '/command-builder',
