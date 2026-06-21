@@ -8,8 +8,9 @@ const RECORD_INFO = {
   AAAA:  { label: 'AAAA',  desc: 'Endereços IPv6',              icon: Server, color: 'text-indigo-400', bg: 'bg-indigo-400/10 border-indigo-400/20' },
   MX:    { label: 'MX',    desc: 'Servidores de e-mail',        icon: Mail,   color: 'text-yellow-400', bg: 'bg-yellow-400/10 border-yellow-400/20' },
   NS:    { label: 'NS',    desc: 'Servidores de nomes (DNS)',   icon: Globe,  color: 'text-green-400',  bg: 'bg-green-400/10 border-green-400/20' },
-  TXT:   { label: 'TXT',   desc: 'Registos de texto (SPF, DKIM…)', icon: Shield, color: 'text-purple-400', bg: 'bg-purple-400/10 border-purple-400/20' },
+  TXT:   { label: 'TXT',   desc: 'Registos de texto (SPF, verificações…)', icon: Shield, color: 'text-purple-400', bg: 'bg-purple-400/10 border-purple-400/20' },
   CNAME: { label: 'CNAME', desc: 'Aliases de domínio',          icon: Info,   color: 'text-slate-400',  bg: 'bg-slate-400/10 border-slate-400/20' },
+  DMARC: { label: 'DMARC', desc: 'Política anti-spoofing de e-mail (_dmarc)', icon: Shield, color: 'text-pink-400', bg: 'bg-pink-400/10 border-pink-400/20' },
 }
 
 const EXAMPLES = ['google.com', 'github.com', 'cloudflare.com', 'microsoft.com']
@@ -67,12 +68,10 @@ function SecurityInsights({ records }) {
   if (spf) insights.push({ type: 'ok',   text: 'SPF configurado — protege contra spoofing de e-mail' })
   else      insights.push({ type: 'warn', text: 'Sem registo SPF — domínio vulnerável a spoofing de e-mail' })
 
-  const dmarc = records.TXT?.find(r => r.includes('v=DMARC1'))
+  // DMARC vem de uma consulta dedicada a _dmarc.<domínio> (campo records.DMARC)
+  const dmarc = records.DMARC?.find(r => r.includes('DMARC1'))
   if (dmarc) insights.push({ type: 'ok',   text: 'DMARC configurado — política de autenticação de e-mail presente' })
   else        insights.push({ type: 'warn', text: 'Sem registo DMARC — sem política de autenticação de e-mail' })
-
-  const dkim = records.TXT?.find(r => r.includes('v=DKIM1'))
-  if (dkim) insights.push({ type: 'ok', text: 'DKIM detetado nos registos TXT' })
 
   if (records.AAAA?.length > 0)
     insights.push({ type: 'info', text: `IPv6 suportado (${records.AAAA.length} endereço${records.AAAA.length > 1 ? 's' : ''})` })
@@ -203,7 +202,7 @@ export default function DNS() {
             <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform duration-200 ${enumSubdomains ? 'translate-x-5' : ''}`} />
           </div>
           <span className="text-xs font-mono text-slate-400 group-hover:text-slate-300 transition-colors">
-            Enumerar subdomínios comuns ({'>'}30 verificados)
+            Enumerar subdomínios comuns (30 verificados)
           </span>
         </label>
 

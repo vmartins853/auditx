@@ -15,11 +15,15 @@
 # significativamente o tempo total de enumeração.
 # ─────────────────────────────────────────────────────────────────────────────
 
+import re             # Expressões regulares — validação do formato do domínio
 import dns.resolver  # Biblioteca dnspython — consultas DNS programáticas em Python
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 # ThreadPoolExecutor — gere um conjunto de threads para execução paralela
 # as_completed — iterador que devolve os resultados à medida que cada thread termina
+
+# Formato aceite para o domínio alvo (ex.: exemplo.com, sub.exemplo.co.uk)
+_DOMAIN_RE = re.compile(r"^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$")
 
 
 # Tipos de registo DNS a consultar em cada domínio
@@ -146,6 +150,11 @@ def run_dns_recon(domain: str, enumerate_subdomains: bool = True) -> dict:
     """
     # Normaliza o domínio — remove espaços e converte para minúsculas
     domain = domain.strip().lower()
+
+    # Validação de formato (evita NXDOMAIN enganador em inputs como "https://x.com")
+    if not _DOMAIN_RE.match(domain):
+        return {"status": "error", "message": f"Domínio inválido: '{domain}'. Usa um formato como exemplo.com."}
+
     records = {}
 
     # ── Fase 1: Resolução paralela dos tipos de registo principais ────────────
@@ -167,6 +176,12 @@ def run_dns_recon(domain: str, enumerate_subdomains: bool = True) -> dict:
                     "message": f"Domínio '{domain}' não encontrado (NXDOMAIN)"
                 }
             records[rtype] = result
+
+    # ── DMARC: publica-se em _dmarc.<domínio> (TXT), não no apex ───────────────
+    # Sem esta consulta dedicada, o DMARC seria sempre reportado como ausente.
+    _, dmarc_vals = resolve_record(f"_dmarc.{domain}", "TXT")
+    if dmarc_vals:  # None (NXDOMAIN) ou [] (sem registo) → simplesmente não adiciona
+        records["DMARC"] = dmarc_vals
 
     # ── Fase 2: Enumeração paralela de subdomínios ────────────────────────────
     found_subdomains = []
