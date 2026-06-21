@@ -66,9 +66,22 @@ export default function CommandBuilder() {
   }
 
   function toggleFlag(flag) {
-    setSelectedFlags(prev =>
-      prev.includes(flag) ? prev.filter(f => f !== flag) : [...prev, flag]
-    )
+    setSelectedFlags(prev => {
+      // Desligar: simplesmente remove
+      if (prev.includes(flag)) return prev.filter(f => f !== flag)
+
+      // Ligar: se a flag pertencer a um grupo mutuamente exclusivo,
+      // remove as outras flags do mesmo grupo antes de a adicionar
+      const def = selectedTool.flags.find(f => f.flag === flag)
+      let next = prev
+      if (def?.group) {
+        const sameGroup = selectedTool.flags
+          .filter(f => f.group === def.group)
+          .map(f => f.flag)
+        next = prev.filter(f => !sameGroup.includes(f))
+      }
+      return [...next, flag]
+    })
   }
 
   const command = useMemo(() =>
@@ -141,7 +154,7 @@ export default function CommandBuilder() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {selectedTool.fields.map(field => (
+            {selectedTool.fields.filter(field => !field.showIf || field.showIf(fieldValues)).map(field => (
               <div key={field.id} className={field.id === 'url' ? 'col-span-2' : ''}>
                 <label className="block text-xs font-mono text-slate-400 mb-2">
                   {field.label.toUpperCase()}

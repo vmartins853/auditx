@@ -10,25 +10,33 @@ export const TOOLS = [
     baseCommand: 'nmap',
     fields: [
       { id: 'target', label: 'Alvo', type: 'text', placeholder: '192.168.1.1 ou alvo.com', flag: '', required: true, position: 'end' },
-      { id: 'ports',  label: 'Portas', type: 'text', placeholder: '1-1000 ou 80,443,8080', flag: '-p', default: '1-1000' },
+      { id: 'ports',  label: 'Portas', type: 'text', placeholder: '1-1000 ou 80,443,8080 (vazio = top 1000)', flag: '-p' },
     ],
     flags: [
       { flag: '-sV',    label: 'Deteção de versão',     desc: 'Tenta identificar a versão dos serviços encontrados' },
-      { flag: '-sS',    label: 'SYN Stealth Scan',      desc: 'Scan furtivo — não completa o handshake TCP (requer root)' },
-      { flag: '-sU',    label: 'UDP Scan',              desc: 'Verifica portas UDP abertas (mais lento)' },
+      { flag: '-sS',    label: 'SYN Stealth Scan',      desc: 'Scan furtivo — envia SYN e não completa o handshake TCP (requer root)', group: 'scantype' },
+      { flag: '-sT',    label: 'TCP Connect Scan',      desc: 'Handshake TCP completo — não precisa de root, mas é mais ruidoso', group: 'scantype' },
+      { flag: '-sU',    label: 'UDP Scan',              desc: 'Verifica portas UDP abertas (bastante mais lento)' },
+      { flag: '-sn',    label: 'Ping Scan',             desc: 'Só descoberta de hosts — não faz scan de portas', group: 'scantype' },
       { flag: '-O',     label: 'Deteção de OS',         desc: 'Tenta identificar o sistema operativo do alvo' },
-      { flag: '-A',     label: 'Aggressive Scan',       desc: 'Ativa deteção de OS, versão, scripts e traceroute' },
-      { flag: '-Pn',    label: 'Skip Host Discovery',   desc: 'Não faz ping — trata o host como online' },
-      { flag: '-p-',    label: 'All Ports',             desc: 'Verifica todas as 65535 portas' },
+      { flag: '-A',     label: 'Aggressive Scan',       desc: 'Ativa deteção de OS (-O), versão (-sV), scripts (-sC) e traceroute' },
+      { flag: '-Pn',    label: 'Skip Host Discovery',   desc: 'Não faz ping — assume que o host está online' },
+      { flag: '-p-',    label: 'All Ports',             desc: 'Verifica todas as portas TCP (1-65535)' },
+      { flag: '-F',     label: 'Fast Scan',             desc: 'Scan rápido — apenas as 100 portas mais comuns' },
       { flag: '--open', label: 'Apenas abertas',        desc: 'Mostra apenas portas no estado open' },
-      { flag: '-T1',    label: 'T1 — Paranoid',        desc: 'Muito lento, ideal para evasão de IDS' },
-      { flag: '-T2',    label: 'T2 — Sneaky',          desc: 'Lento, reduz probabilidade de deteção' },
-      { flag: '-T3',    label: 'T3 — Normal',          desc: 'Velocidade padrão do Nmap' },
-      { flag: '-T4',    label: 'T4 — Aggressive',      desc: 'Mais rápido, recomendado em redes locais' },
-      { flag: '-T5',    label: 'T5 — Insane',          desc: 'Máxima velocidade — pode perder resultados' },
-      { flag: '-sC',    label: 'Default Scripts',       desc: 'Executa os scripts NSE padrão do Nmap' },
-      { flag: '-v',     label: 'Verbose',               desc: 'Aumenta o detalhe do output' },
-      { flag: '-oN output.txt', label: 'Guardar output', desc: 'Guarda o output em ficheiro .txt', isRaw: true },
+      { flag: '-n',     label: 'Sem DNS',               desc: 'Não resolve nomes DNS — acelera o scan' },
+      { flag: '-6',     label: 'IPv6',                  desc: 'Faz scan a alvos IPv6' },
+      { flag: '-T0',    label: 'T0 — Paranoid',        desc: 'Extremamente lento — para evasão de IDS', group: 'timing' },
+      { flag: '-T1',    label: 'T1 — Sneaky',          desc: 'Muito lento — também para evasão de IDS', group: 'timing' },
+      { flag: '-T2',    label: 'T2 — Polite',          desc: 'Abranda para usar menos largura de banda e não sobrecarregar o alvo', group: 'timing' },
+      { flag: '-T3',    label: 'T3 — Normal',          desc: 'Velocidade padrão do Nmap (predefinição)', group: 'timing' },
+      { flag: '-T4',    label: 'T4 — Aggressive',      desc: 'Mais rápido — recomendado em redes locais/rápidas', group: 'timing' },
+      { flag: '-T5',    label: 'T5 — Insane',          desc: 'Velocidade máxima — pode perder resultados', group: 'timing' },
+      { flag: '-sC',    label: 'Default Scripts',       desc: 'Executa o conjunto de scripts NSE padrão (= --script=default)' },
+      { flag: '--reason', label: 'Reason',              desc: 'Mostra o motivo pelo qual cada porta está naquele estado' },
+      { flag: '-v',     label: 'Verbose',               desc: 'Aumenta o detalhe do output (podes repetir: -vv)' },
+      { flag: '-oN output.txt', label: 'Guardar (normal)', desc: 'Guarda o output em formato normal num .txt', isRaw: true },
+      { flag: '-oA output',     label: 'Guardar (todos)',  desc: 'Guarda em normal, XML e grepable de uma vez', isRaw: true },
     ]
   },
   {
@@ -88,8 +96,9 @@ export const TOOLS = [
       { id: 'threads', label: 'Threads', type: 'text', placeholder: '16', flag: '-t', default: '16' },
     ],
     flags: [
-      { flag: '-V',     label: 'Verbose',         desc: 'Mostra cada tentativa de login' },
+      { flag: '-V',     label: 'Verbose',         desc: 'Mostra o login:password de cada tentativa' },
       { flag: '-f',     label: 'Stop on success', desc: 'Para após encontrar a primeira credencial válida' },
+      { flag: '-S',     label: 'SSL',             desc: 'Liga por SSL/TLS (ex.: serviços em HTTPS)' },
       { flag: '-e nsr', label: 'Extra checks',    desc: 'Testa null, username como password, e reverse', isRaw: true },
     ]
   },
@@ -108,9 +117,12 @@ export const TOOLS = [
       { id: 'threads',  label: 'Threads', type: 'text', placeholder: '40', flag: '-t', default: '40' },
       { id: 'ext',      label: 'Extensões', type: 'text', placeholder: '.php,.html', flag: '-e' },
       { id: 'fc',       label: 'Filtrar status', type: 'text', placeholder: '404,403', flag: '-fc' },
+      { id: 'mc',       label: 'Match status', type: 'text', placeholder: '200,301,302,401,403', flag: '-mc' },
+      { id: 'fs',       label: 'Filtrar tamanho', type: 'text', placeholder: 'ex: 42 ou 0-100', flag: '-fs' },
     ],
     flags: [
-      { flag: '-recursion', label: 'Recursão',  desc: 'Faz fuzzing recursivo em diretórios encontrados' },
+      { flag: '-recursion', label: 'Recursão',      desc: 'Faz fuzzing recursivo (a URL tem de terminar em FUZZ)' },
+      { flag: '-ac',        label: 'Auto-calibrate', desc: 'Calibra filtros automaticamente para descartar respostas falsas/wildcard' },
       { flag: '-s',         label: 'Silent',    desc: 'Modo silencioso — só mostra resultados positivos' },
       { flag: '-v',         label: 'Verbose',   desc: 'Mostra URLs completas no output' },
     ]
@@ -156,6 +168,8 @@ export const TOOLS = [
           { value: '0', label: '0 — Dictionary Attack' },
           { value: '1', label: '1 — Combination Attack' },
           { value: '3', label: '3 — Brute-force / Mask' },
+          { value: '6', label: '6 — Hybrid Wordlist + Mask' },
+          { value: '7', label: '7 — Hybrid Mask + Wordlist' },
         ]
       },
       { id: 'hashtype', label: 'Tipo de Hash (-m)', type: 'select', flag: '-m',
@@ -166,10 +180,15 @@ export const TOOLS = [
           { value: '1000', label: '1000 — NTLM' },
           { value: '3200', label: '3200 — bcrypt' },
           { value: '5600', label: '5600 — NetNTLMv2' },
+          { value: '1700', label: '1700 — SHA-512' },
+          { value: '1800', label: '1800 — sha512crypt (Linux $6$)' },
+          { value: '22000', label: '22000 — WPA-PBKDF2 (Wi-Fi)' },
         ]
       },
-      { id: 'hashfile', label: 'Ficheiro de hashes', type: 'text', placeholder: 'hashes.txt', flag: '', position: 'end', required: true },
-      { id: 'wordlist', label: 'Wordlist', type: 'text', placeholder: '/usr/share/wordlists/rockyou.txt', flag: '', position: 'end', default: '/usr/share/wordlists/rockyou.txt' },
+      { id: 'hashfile', label: 'Ficheiro de hashes', type: 'text', placeholder: 'hashes.txt', flag: '', required: true },
+      { id: 'wordlist',  label: 'Wordlist', type: 'text', placeholder: '/usr/share/wordlists/rockyou.txt', flag: '', default: '/usr/share/wordlists/rockyou.txt', showIf: v => ['0','1','6','7'].includes(v.mode || '0') },
+      { id: 'wordlist2', label: 'Wordlist 2 (combinação)', type: 'text', placeholder: '/usr/share/wordlists/rockyou.txt', flag: '', showIf: v => (v.mode || '0') === '1' },
+      { id: 'mask',      label: 'Máscara', type: 'text', placeholder: '?a?a?a?a  (ex.: ?l?l?l?d)', flag: '', showIf: v => ['3','6','7'].includes(v.mode || '0') },
     ],
     flags: [
       { flag: '--show',     label: 'Mostrar cracked',   desc: 'Exibe hashes já crackeados anteriormente' },
@@ -240,6 +259,22 @@ export function buildCommand(tool, fieldValues, selectedFlags) {
     const val = fieldValues[field.id] ?? (field.default || '')
     if (!val) return
 
+    // A flag -p- (todas as portas) tem prioridade sobre o campo de portas
+    if (field.id === 'ports' && selectedFlags.includes('-p-')) return
+
+    // Caso especial Gobuster: o modo dns usa --domain (não -u) e -x só existe no modo dir
+    if (tool.id === 'gobuster') {
+      const mode = fieldValues['mode'] || 'dir'
+      if (field.id === 'ext' && mode !== 'dir') return
+      if (field.id === 'url' && mode === 'dns') {
+        parts.push(`--domain ${val}`)
+        return
+      }
+    }
+
+    // Hashcat: os argumentos posicionais são montados à parte (ordem depende do modo)
+    if (tool.id === 'hashcat' && ['hashfile', 'wordlist', 'wordlist2', 'mask'].includes(field.id)) return
+
     if (field.position === 'after-base') {
       parts.splice(1, 0, val)
     } else if (field.position === 'end') {
@@ -256,6 +291,21 @@ export function buildCommand(tool, fieldValues, selectedFlags) {
     const target  = fieldValues['target']  || '<alvo>'
     const service = fieldValues['service'] || 'ssh'
     endParts.push(target, service)
+  }
+
+  // Caso especial Hashcat: a ordem dos argumentos finais depende do modo (-a)
+  if (tool.id === 'hashcat') {
+    const mode     = fieldValues['mode'] || '0'
+    const hashfile = fieldValues['hashfile'] || ''
+    const wl       = fieldValues['wordlist'] ?? '/usr/share/wordlists/rockyou.txt'
+    const wl2      = fieldValues['wordlist2'] || ''
+    const mask     = fieldValues['mask'] || ''
+    if (hashfile) endParts.push(hashfile)
+    if (mode === '1')      { if (wl) endParts.push(wl); if (wl2) endParts.push(wl2) }
+    else if (mode === '3') { if (mask) endParts.push(mask) }
+    else if (mode === '6') { if (wl) endParts.push(wl); if (mask) endParts.push(mask) }
+    else if (mode === '7') { if (mask) endParts.push(mask); if (wl) endParts.push(wl) }
+    else                   { if (wl) endParts.push(wl) }  // modo 0 (dictionary)
   }
 
   selectedFlags.forEach(flag => parts.push(flag))
