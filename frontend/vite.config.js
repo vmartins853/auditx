@@ -24,9 +24,16 @@
 
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { readFileSync } from 'fs'
+
+// Versão lida do package.json → injetada como __APP_VERSION__ (fonte única no frontend)
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
 export default defineConfig({
   plugins: [react()],  // Plugin oficial do React para Vite (suporte a JSX e Fast Refresh)
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),  // substituído em build/dev
+  },
   server: {
     port: 5173,           // Porta onde o servidor de desenvolvimento escuta
     host: '127.0.0.1',    // Força IPv4 para compatibilidade com o backend FastAPI
