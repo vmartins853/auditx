@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import {
-  Shield, Scan, Globe, Terminal, Brain, FileText, ShieldCheck, Lock
+  Shield, Scan, Globe, Terminal, Brain, FileText, ShieldCheck, Lock, History
 } from 'lucide-react'
 import ErrorBoundary from '../ErrorBoundary'
 
@@ -13,6 +13,7 @@ const navItems = [
   { to: '/command-builder', label: 'Command Builder', icon: Terminal },
   { to: '/ai-analyzer',     label: 'AI Analyzer',     icon: Brain },
   { to: '/reports',         label: 'Reports',         icon: FileText },
+  { to: '/history',         label: 'Histórico',       icon: History },
 ]
 
 export default function Layout() {

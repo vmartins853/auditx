@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTemporaryStorage } from '../hooks/useTemporaryStorage'
 import { ShieldCheck, Play, AlertTriangle, Loader2, Check, X, Info } from 'lucide-react'
 import { checkHeaders } from '../services/api'
+import { addHistoryEntry } from '../services/history'
 
 const SEVERITY_COLOR = {
   'Alta':  'text-red-400 bg-red-400/10 border-red-400/20',
@@ -33,7 +34,10 @@ export default function Headers() {
     try {
       const res = await checkHeaders(url.trim())
       if (res.data.status === 'error') setError(res.data.message)
-      else setResult(res.data)
+      else {
+        setResult(res.data)
+        addHistoryEntry({ type: 'headers', target: url.trim(), summary: `Nota ${res.data.grade} (${res.data.present}/${res.data.total})`, data: res.data })
+      }
     } catch (e) {
       setError(e.response?.data?.detail || 'Erro de ligação ao backend. Verifica se o servidor está a correr em localhost:8000.')
     } finally {

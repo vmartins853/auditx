@@ -31,6 +31,7 @@ import AIAnalyzer     from './pages/AIAnalyzer'
 import Reports        from './pages/Reports'
 import Headers        from './pages/Headers'
 import TLS            from './pages/TLS'
+import History        from './pages/History'
 import NotFound       from './pages/NotFound'
 
 export default function App() {
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="command-builder"    element={<CommandBuilder />} />
           <Route path="ai-analyzer"        element={<AIAnalyzer />}     />
           <Route path="reports"            element={<Reports />}        />
+          <Route path="history"            element={<History />}        />
           <Route path="headers"            element={<Headers />}        />
           <Route path="tls"                element={<TLS />}            />
           {/* catch-all — qualquer URL desconhecido */}

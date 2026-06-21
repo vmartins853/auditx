@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTemporaryStorage } from '../hooks/useTemporaryStorage'
 import { Scan, Play, Copy, Check, AlertTriangle, ChevronDown, ChevronUp, Loader2, Wifi } from 'lucide-react'
 import { runScan } from '../services/api'
+import { addHistoryEntry } from '../services/history'
 
 const SCAN_PRESETS = [
   { label: 'Scan Rápido',   flags: ['-T4'],        ports: '1-1000',  desc: 'Top 1000 portas, velocidade T4' },
@@ -88,7 +89,10 @@ export default function Scanner() {
     try {
       const res = await runScan(target.trim(), { ports, flags })
       if (res.data.status === 'error') setError(res.data.message)
-      else setResult(res.data)
+      else {
+        setResult(res.data)
+        addHistoryEntry({ type: 'scanner', target: target.trim(), summary: `${res.data.parsed?.length || 0} portas abertas`, data: res.data })
+      }
     } catch (e) {
       setError(e.response?.data?.detail || 'Erro de ligação ao backend. Verifica se o servidor está a correr em localhost:8000.')
     } finally {

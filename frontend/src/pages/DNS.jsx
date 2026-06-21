@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTemporaryStorage } from '../hooks/useTemporaryStorage'
 import { Globe, Play, Copy, Check, AlertTriangle, Loader2, ChevronDown, ChevronUp, Server, Mail, Shield, Info, Search } from 'lucide-react'
 import { runDNSRecon } from '../services/api'
+import { addHistoryEntry } from '../services/history'
 
 const RECORD_INFO = {
   A:     { label: 'A',     desc: 'Endereços IPv4',              icon: Server, color: 'text-blue-400',   bg: 'bg-blue-400/10 border-blue-400/20' },
@@ -130,7 +131,10 @@ export default function DNS() {
     try {
       const res = await runDNSRecon(domain.trim(), enumSubdomains)
       if (res.data.status === 'error') setError(res.data.message)
-      else setResult(res.data)
+      else {
+        setResult(res.data)
+        addHistoryEntry({ type: 'dns', target: domain.trim(), summary: `${res.data.stats?.total_records ?? 0} registos · ${res.data.subdomains?.length ?? 0} subdomínios`, data: res.data })
+      }
     } catch (e) {
       setError(e.response?.data?.detail || 'Erro de ligação ao backend. Verifica se o servidor está a correr em localhost:8000.')
     } finally {

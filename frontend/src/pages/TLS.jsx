@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTemporaryStorage } from '../hooks/useTemporaryStorage'
 import { Lock, Play, AlertTriangle, Loader2, Check, X, ShieldAlert } from 'lucide-react'
 import { inspectTLS } from '../services/api'
+import { addHistoryEntry } from '../services/history'
 
 const EXAMPLES = ['github.com', 'expired.badssl.com', 'self-signed.badssl.com']
 const WEAK_TLS = ['SSLv3', 'TLSv1', 'TLSv1.1']
@@ -42,7 +43,10 @@ export default function TLS() {
     try {
       const res = await inspectTLS(target.trim())
       if (res.data.status === 'error') setError(res.data.message)
-      else setResult(res.data)
+      else {
+        setResult(res.data)
+        addHistoryEntry({ type: 'tls', target: `${res.data.host}:${res.data.port}`, summary: `${res.data.trusted ? 'Confiável' : 'Não confiável'} · ${res.data.days_left}d`, data: res.data })
+      }
     } catch (e) {
       setError(e.response?.data?.detail || 'Erro de ligação ao backend. Verifica se o servidor está a correr em localhost:8000.')
     } finally {

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTemporaryStorage } from '../hooks/useTemporaryStorage'
 import { Brain, Play, Copy, Check, AlertTriangle, Loader2, ChevronDown, ChevronUp, Zap, Shield, List } from 'lucide-react'
 import { analyzeOutput } from '../services/api'
+import { addHistoryEntry } from '../services/history'
 
 const TOOLS = [
   { value: 'nmap',      label: 'Nmap',          placeholder: 'Cola aqui o output do Nmap...' },
@@ -41,7 +42,10 @@ export default function AIAnalyzer() {
     try {
       const res = await analyzeOutput(tool, output)
       if (res.data.status === 'error') setError(res.data.message)
-      else setResult(res.data.analysis)
+      else {
+        setResult(res.data.analysis)
+        addHistoryEntry({ type: 'ai', target: tool, summary: `${res.data.analysis.riscos?.length || 0} riscos identificados`, data: res.data.analysis })
+      }
     } catch (e) {
       setError(e.response?.data?.detail || 'Erro de ligação ao backend. Verifica se o servidor está a correr em localhost:8000.')
     } finally {
