@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from version import __version__
 
 # Importação dos routers de cada módulo da aplicação
-from routers import scanner, dns, ai, reports, headers
+from routers import scanner, dns, ai, reports, headers, tls
 
 # ── Inicialização da aplicação FastAPI ────────────────────────────────────────
 # O FastAPI gera automaticamente documentação interativa em:
@@ -60,6 +60,7 @@ app.include_router(dns.router,     prefix="/api/dns",     tags=["DNS Recon"])
 app.include_router(ai.router,      prefix="/api/ai",      tags=["AI Analyzer"])
 app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 app.include_router(headers.router, prefix="/api/headers", tags=["Security Headers"])
+app.include_router(tls.router,     prefix="/api/tls",     tags=["TLS Inspector"])
 
 
 # ── Endpoint de verificação de estado ─────────────────────────────────────────

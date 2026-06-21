@@ -91,5 +91,15 @@ export const generateReport = (data) =>
 export const checkHeaders = (url) =>
   api.post('/headers/check', { url })
 
+// ── inspectTLS ────────────────────────────────────────────────────────────────
+// Inspeciona o certificado TLS de um host.
+//
+// Parâmetros:
+//   target (string): domínio (ex: "exemplo.com") ou host:porta
+//
+// Devolve: Promise com a resposta Axios (res.data contém os detalhes do certificado)
+export const inspectTLS = (target) =>
+  api.post('/tls/inspect', { target })
+
 // Exportação da instância base para uso direto nos componentes se necessário
 export default api

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Scan, Globe, Terminal, Brain, FileText, Shield, ShieldCheck } from 'lucide-react'
+import { Scan, Globe, Terminal, Brain, FileText, Shield, ShieldCheck, Lock } from 'lucide-react'
 
 const modules = [
   {
@@ -25,6 +25,14 @@ const modules = [
     desc: 'Avalia os cabeçalhos de segurança HTTP de um site e atribui uma nota A–F.',
     color: 'text-cyan-400',
     bg: 'bg-cyan-400/10 border-cyan-400/20',
+  },
+  {
+    to: '/tls',
+    icon: Lock,
+    title: 'TLS Inspector',
+    desc: 'Inspeciona o certificado TLS de um host: validade, emissor, SANs e confiança.',
+    color: 'text-teal-400',
+    bg: 'bg-teal-400/10 border-teal-400/20',
   },
   {
     to: '/command-builder',
