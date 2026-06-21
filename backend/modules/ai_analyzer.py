@@ -26,12 +26,37 @@ load_dotenv()
 # Esta chave é configurada no ficheiro .env (ex: GEMINI_API_KEY=AIzaSy...)
 api_key = os.getenv("GEMINI_API_KEY")
 
-# Configura a biblioteca com a chave da API
-genai.configure(api_key=api_key)
+# response_mime_type="application/json" instrui o modelo a devolver JSON puro
+# (sem markdown), tornando o parsing fiável.
+_GENERATION_CONFIG = {"response_mime_type": "application/json"}
 
-# Instancia o modelo Gemini a usar em todas as análises
-# gemini-2.5-flash é o modelo mais rápido e económico da família Gemini 2.5
-model = genai.GenerativeModel("gemini-2.5-flash")
+# Esta ferramenta analisa output de segurança ofensiva (legítimo, em ambiente
+# autorizado). Sem baixar os filtros, o Gemini recusa frequentemente este tipo
+# de conteúdo ("vetores de ataque"), fazendo a análise falhar.
+_SAFETY_SETTINGS = {
+    "HARM_CATEGORY_HARASSMENT":        "BLOCK_NONE",
+    "HARM_CATEGORY_HATE_SPEECH":       "BLOCK_NONE",
+    "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
+    "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE",
+}
+
+# O modelo é instanciado de forma LAZY (só no primeiro pedido). Assim, a ausência
+# da chave NÃO impede o backend de arrancar — apenas a aba AI Analyzer fica
+# indisponível, com um erro claro (o Scanner, DNS e Reports continuam a funcionar).
+_model = None
+
+
+def _get_model():
+    """Configura e instancia o modelo Gemini na primeira utilização (cache em _model)."""
+    global _model
+    if _model is None:
+        genai.configure(api_key=api_key)
+        _model = genai.GenerativeModel(
+            "gemini-2.5-flash",
+            generation_config=_GENERATION_CONFIG,
+            safety_settings=_SAFETY_SETTINGS,
+        )
+    return _model
 
 
 async def analyze_with_ai(tool: str, output: str) -> dict:
@@ -53,6 +78,13 @@ async def analyze_with_ai(tool: str, output: str) -> dict:
     Devolve:
         dict: Dicionário com o estado da análise e os dados estruturados devolvidos pela IA
     """
+
+    # Sem chave configurada → não rebenta o arranque; devolve erro apenas nesta aba
+    if not api_key:
+        return {
+            "status":  "error",
+            "message": "GEMINI_API_KEY não definida. Preenche backend/.env com a tua chave Gemini.",
+        }
 
     # ── Construção do prompt ──────────────────────────────────────────────────
     # O prompt define o papel do modelo (especialista em cibersegurança),
@@ -83,8 +115,10 @@ Responde APENAS com o JSON, sem markdown, sem ```json, sem texto extra.
 """
 
     try:
-        # Envia o prompt ao modelo Gemini e aguarda a resposta
-        response = model.generate_content(prompt)
+        # Envia o prompt ao modelo Gemini e aguarda a resposta.
+        # generate_content_async é não-bloqueante — usar a versão síncrona aqui
+        # bloquearia o event loop do FastAPI durante toda a chamada de rede.
+        response = await _get_model().generate_content_async(prompt)
 
         # Extrai o texto da resposta e remove espaços em branco desnecessários
         text = response.text.strip()
