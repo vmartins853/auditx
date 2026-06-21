@@ -4,10 +4,19 @@ echo "🛡️  A iniciar AuditX..."
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
+PYTHON="$ROOT/backend/venv/bin/python"
+
+# Verifica que o venv do backend existe
+if [ ! -x "$PYTHON" ]; then
+  echo "❌ venv do backend não encontrado em backend/venv."
+  echo "   Corre primeiro:  ./setup.sh"
+  exit 1
+fi
+
 # Backend em background
 echo "🐍 A iniciar backend..."
 cd "$ROOT/backend"
-"$ROOT/backend/venv/bin/python" -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload &
+"$PYTHON" -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload &
 BACKEND_PID=$!
 echo "✅ Backend a correr (PID: $BACKEND_PID)"
 
@@ -16,7 +25,7 @@ sleep 2
 # Frontend em background
 echo "⚛️  A iniciar frontend..."
 cd "$ROOT/frontend"
-/usr/bin/npm run dev &
+npm run dev &
 FRONTEND_PID=$!
 echo "✅ Frontend a correr (PID: $FRONTEND_PID)"
 
