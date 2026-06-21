@@ -17,7 +17,10 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 import os
+import html  # Escapar valores dinâmicos para evitar injeção de HTML no relatório
 from datetime import datetime
+
+from version import __version__  # Versão centralizada
 
 # Diretório temporário onde os relatórios gerados são guardados
 # /tmp é limpo automaticamente pelo sistema operativo ao reiniciar
@@ -48,10 +51,12 @@ def build_html(data: dict) -> str:
     """
 
     # ── Extração dos campos do dicionário de dados ────────────────────────────
-    alvo        = data.get("alvo", "N/D")       # "N/D" = Não Definido (valor por omissão)
-    auditor     = data.get("auditor", "N/D")
-    data_str    = data.get("data", datetime.now().strftime("%d/%m/%Y"))
-    descricao   = data.get("descricao", "")
+    # Todos os campos escalares são escapados — vêm de input do utilizador e nunca
+    # devem ser interpretados como HTML (evita injeção/SSRF via WeasyPrint e XSS no fallback HTML)
+    alvo        = html.escape(str(data.get("alvo", "N/D")))       # "N/D" = Não Definido (valor por omissão)
+    auditor     = html.escape(str(data.get("auditor", "N/D")))
+    data_str    = html.escape(str(data.get("data", datetime.now().strftime("%d/%m/%Y"))))
+    descricao   = html.escape(str(data.get("descricao", "")))
     scanner     = data.get("scanner", None)     # Resultados do Port Scanner (pode ser None)
     dns         = data.get("dns", None)         # Resultados do DNS Recon (pode ser None)
     ai_analysis = data.get("ai_analysis", None) # Análise de IA (pode ser None)
@@ -72,16 +77,16 @@ def build_html(data: dict) -> str:
         # Gera uma linha de tabela por cada porta aberta encontrada
         rows = "".join(f"""
         <tr>
-          <td>{p['port']}</td>
-          <td>{p['protocol']}</td>
-          <td>{p['service']}</td>
-          <td>{p.get('version') or '—'}</td>
+          <td>{int(p['port'])}</td>
+          <td>{html.escape(str(p['protocol']))}</td>
+          <td>{html.escape(str(p['service']))}</td>
+          <td>{html.escape(str(p.get('version') or '—'))}</td>
         </tr>""" for p in scanner["parsed"])
 
         scanner_html = f"""
         <div class="section">
           <h2>🔍 Port Scanner</h2>
-          <p><strong>Comando:</strong> <code>{scanner.get('command','')}</code></p>
+          <p><strong>Comando:</strong> <code>{html.escape(str(scanner.get('command','')))}</code></p>
           <p><strong>Portas abertas:</strong> {len(scanner['parsed'])}</p>
           <table>
             <thead><tr><th>Porta</th><th>Protocolo</th><th>Serviço</th><th>Versão</th></tr></thead>
@@ -97,13 +102,14 @@ def build_html(data: dict) -> str:
         records_html = ""
         for rtype, vals in dns["records"].items():
             if vals:
-                records_html += f"<tr><td><strong>{rtype}</strong></td><td>{'<br>'.join(vals)}</td></tr>"
+                vals_html = "<br>".join(html.escape(str(v)) for v in vals)
+                records_html += f"<tr><td><strong>{html.escape(str(rtype))}</strong></td><td>{vals_html}</td></tr>"
 
         # Secção de subdomínios — apenas incluída se foram encontrados subdomínios
         subdomains_html = ""
         if dns.get("subdomains"):
             sub_rows = "".join(
-                f"<tr><td>{s['subdomain']}</td><td>{s['type']}</td><td>{', '.join(s.get('records', []))}</td></tr>"
+                f"<tr><td>{html.escape(str(s['subdomain']))}</td><td>{html.escape(str(s['type']))}</td><td>{html.escape(', '.join(s.get('records', [])))}</td></tr>"
                 for s in dns["subdomains"]
             )
             subdomains_html = f"""
@@ -116,7 +122,7 @@ def build_html(data: dict) -> str:
         dns_html = f"""
         <div class="section">
           <h2>🌐 DNS Recon</h2>
-          <p><strong>Domínio:</strong> {dns.get('domain','')}</p>
+          <p><strong>Domínio:</strong> {html.escape(str(dns.get('domain','')))}</p>
           <table>
             <thead><tr><th>Tipo</th><th>Registos</th></tr></thead>
             <tbody>{records_html}</tbody>
@@ -135,21 +141,21 @@ def build_html(data: dict) -> str:
             riscos_html += f"""
             <div class="risk-card">
               <div class="risk-header">
-                <span>{r.get('titulo','')}</span>
-                <span class="badge" style="background:{color}22;color:{color};border:1px solid {color}44">{r.get('severidade','')}</span>
+                <span>{html.escape(str(r.get('titulo','')))}</span>
+                <span class="badge" style="background:{color}22;color:{color};border:1px solid {color}44">{html.escape(str(r.get('severidade','')))}</span>
               </div>
-              <p>{r.get('descricao','')}</p>
+              <p>{html.escape(str(r.get('descricao','')))}</p>
             </div>"""
 
         # Gera listas HTML para recomendações e próximos passos
-        recs_html   = "".join(f"<li>{r}</li>" for r in ai_analysis.get("recomendacoes", []))
-        passos_html = "".join(f"<li><code>{p}</code></li>" for p in ai_analysis.get("proximos_passos", []))
+        recs_html   = "".join(f"<li>{html.escape(str(r))}</li>" for r in ai_analysis.get("recomendacoes", []))
+        passos_html = "".join(f"<li><code>{html.escape(str(p))}</code></li>" for p in ai_analysis.get("proximos_passos", []))
 
         ai_html = f"""
         <div class="section">
           <h2>🤖 Análise de IA</h2>
           <div class="summary-box">
-            <strong>Resumo:</strong><br>{ai_analysis.get('resumo','')}
+            <strong>Resumo:</strong><br>{html.escape(str(ai_analysis.get('resumo','')))}
           </div>
           <h3>Riscos Identificados</h3>
           {riscos_html}
@@ -243,7 +249,7 @@ def build_html(data: dict) -> str:
 
   <!-- Rodapé com versão e timestamp -->
   <div class="footer">
-    <span>AuditX v0.1.0 — PIEI-22</span>
+    <span>AuditX v{__version__} — PIEI-22</span>
     <span>Gerado automaticamente em {datetime.now().strftime('%d/%m/%Y às %H:%M')}</span>
   </div>
 </body>

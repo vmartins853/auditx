@@ -11,19 +11,22 @@ export default function Reports() {
   const [error,     setError]     = useState(null)
   const [success,   setSuccess]   = useState(false)
 
-  // Carregar dados guardados dos outros módulos
+  // Carregar dados guardados dos outros módulos.
+  // O TTL tem de coincidir com o do useTemporaryStorage (30 min), senão a Reports
+  // descarta dados que os módulos ainda consideram válidos.
+  const STORAGE_TTL = 30 * 60 * 1000
   function loadFromStorage(key) {
     try {
       const item = sessionStorage.getItem(key)
       if (!item) return null
       const { value, timestamp } = JSON.parse(item)
-      const expired = Date.now() - timestamp > 2 * 60 * 1000
+      const expired = Date.now() - timestamp > STORAGE_TTL
       return expired ? null : value
     } catch { return null }
   }
 
   const scannerResult = loadFromStorage('scanner_result')
-  const dnsResult     = loadFromStorage('dns_result') || loadFromStorage('dns_result_data')
+  const dnsResult     = loadFromStorage('dns_result')
   const aiResult      = loadFromStorage('ai_result')
 
   async function handleGenerate() {
@@ -48,10 +51,13 @@ export default function Reports() {
       }
 
       const res = await generateReport(payload)
-      const url = window.URL.createObjectURL(new Blob([res.data]))
+      // Usa o content-type da resposta: o backend pode devolver HTML (fallback do WeasyPrint)
+      const ct  = res.headers['content-type'] || 'application/pdf'
+      const ext = ct.includes('pdf') ? 'pdf' : 'html'
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: ct }))
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', 'auditx_report.pdf')
+      link.setAttribute('download', `auditx_report.${ext}`)
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -111,7 +117,7 @@ export default function Reports() {
         </div>
         {!hasScanner && !hasDNS && !hasAI && (
           <p className="text-xs font-mono text-yellow-400 mt-3">
-            ⚠ Nenhum resultado detetado. Os dados dos módulos expiram após 2 minutos de inatividade.
+            ⚠ Nenhum resultado detetado. Os dados dos módulos expiram após 30 minutos de inatividade.
           </p>
         )}
       </div>
