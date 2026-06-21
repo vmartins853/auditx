@@ -5,7 +5,7 @@ import { runScan } from '../services/api'
 
 const SCAN_PRESETS = [
   { label: 'Scan Rápido',   flags: ['-T4'],        ports: '1-1000',  desc: 'Top 1000 portas, velocidade T4' },
-  { label: 'Scan Completo', flags: ['-T4', '-sV'], ports: '1-65535', desc: 'Todas as portas + deteção de versão' },
+  { label: 'Scan Completo', flags: ['-T4', '-sV'], ports: '-',       desc: 'Todas as portas (-p-) + deteção de versão' },
   { label: 'Deteção de OS', flags: ['-T4', '-O'],  ports: '1-1000',  desc: 'Tenta identificar o sistema operativo' },
   { label: 'Stealth SYN',   flags: ['-sS', '-T2'], ports: '1-1000',  desc: 'Scan furtivo SYN, mais lento' },
   { label: 'UDP Scan',      flags: ['-sU', '-T4'], ports: '1-500',   desc: 'Verifica portas UDP abertas' },
@@ -30,14 +30,23 @@ function getRisk(port) {
 }
 
 function isValidTarget(value) {
-  const ipv4   = /^(\d{1,3}\.){3}\d{1,3}$/
+  const v = value.trim()
+  if (v === 'localhost') return true
+
+  const ipv4   = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/   // IPv4 com CIDR opcional
+  const ipv6   = /^[0-9a-fA-F:]+(\/\d{1,3})?$/            // IPv6 simplificado
   const domain = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/
 
-  if (ipv4.test(value)) {
-    return value.split('.').every(n => parseInt(n) >= 0 && parseInt(n) <= 255)
+  if (ipv4.test(v)) {
+    const [ip, cidr] = v.split('/')
+    const octetsOk = ip.split('.').every(n => parseInt(n) >= 0 && parseInt(n) <= 255)
+    const cidrOk   = cidr === undefined || (parseInt(cidr) >= 0 && parseInt(cidr) <= 32)
+    return octetsOk && cidrOk
   }
 
-  return domain.test(value)
+  if (v.includes(':') && ipv6.test(v)) return true
+
+  return domain.test(v)
 }
 
 export default function Scanner() {
@@ -77,19 +86,10 @@ export default function Scanner() {
     setError(null)
     setResult(null)
     try {
-      console.log('A fazer scan...')
       const res = await runScan(target.trim(), { ports, flags })
-      console.log('Resposta recebida:', res)
       if (res.data.status === 'error') setError(res.data.message)
       else setResult(res.data)
     } catch (e) {
-      console.log('Erro capturado:', e.message)
-      console.log('Erro tipo:', e.constructor.name)
-      console.log('Erro capturado:', e.message)
-      console.log('Erro tipo:', e.constructor.name)
-      console.log('Erro completo:', JSON.stringify(e, Object.getOwnPropertyNames(e)))
-      console.log('Erro code:', e.code)
-      console.log('Erro config url:', e.config?.url)
       setError(e.response?.data?.detail || 'Erro de ligação ao backend. Verifica se o servidor está a correr em localhost:8000.')
     } finally {
       setLoading(false)
