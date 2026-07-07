@@ -2,7 +2,8 @@
 # modules/report_generator.py — Módulo de Geração de Relatórios PDF
 #
 # Este módulo constrói relatórios de auditoria em formato PDF a partir dos
-# resultados dos outros módulos (Port Scanner, DNS Recon, AI Analyzer).
+# resultados dos outros módulos (Port Scanner, DNS Recon, Security Headers,
+# TLS Inspector, AI Analyzer) e do histórico de execuções.
 #
 # O processo é:
 #   1. Receber os dados estruturados de cada módulo via dicionário Python
@@ -28,13 +29,24 @@ REPORTS_DIR = "/tmp/auditx_reports"
 os.makedirs(REPORTS_DIR, exist_ok=True)  # Cria o diretório se não existir
 
 
+def _fmt_ts(ts: str) -> str:
+    """Formata um timestamp ISO 8601 para uma forma legível (dd/mm/aaaa HH:MM).
+
+    Se o valor não for um ISO válido, devolve-o tal como veio (já escapado pelo
+    chamador). Tolera o sufixo 'Z' (UTC) que o JavaScript produz.
+    """
+    try:
+        return datetime.fromisoformat(str(ts).replace("Z", "+00:00")).strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return str(ts)
+
+
 def build_html(data: dict) -> str:
     """
     Constrói o documento HTML completo do relatório de auditoria.
 
-    Recebe os dados dos três módulos (scanner, dns, ai_analysis) e gera
-    um documento HTML formatado com CSS incorporado, pronto para ser
-    convertido para PDF pelo WeasyPrint.
+    Recebe os dados dos módulos e gera um documento HTML formatado com CSS
+    incorporado, pronto para ser convertido para PDF pelo WeasyPrint.
 
     Parâmetros:
         data (dict): Dicionário com os dados do relatório:
@@ -44,7 +56,10 @@ def build_html(data: dict) -> str:
             - descricao   (str): Descrição do âmbito da auditoria
             - scanner     (dict): Resultados do Port Scanner (opcional)
             - dns         (dict): Resultados do DNS Recon (opcional)
+            - headers     (dict): Resultados do Security Headers (opcional)
+            - tls         (dict): Resultados do TLS Inspector (opcional)
             - ai_analysis (dict): Análise da IA (opcional)
+            - history     (list): Histórico de execuções da sessão (opcional)
 
     Devolve:
         str: String com o documento HTML completo
@@ -59,7 +74,10 @@ def build_html(data: dict) -> str:
     descricao   = html.escape(str(data.get("descricao", "")))
     scanner     = data.get("scanner", None)     # Resultados do Port Scanner (pode ser None)
     dns         = data.get("dns", None)         # Resultados do DNS Recon (pode ser None)
+    headers     = data.get("headers", None)     # Resultados do Security Headers (pode ser None)
+    tls         = data.get("tls", None)         # Resultados do TLS Inspector (pode ser None)
     ai_analysis = data.get("ai_analysis", None) # Análise de IA (pode ser None)
+    history     = data.get("history", None)     # Histórico de execuções (lista, pode ser None)
 
     def severity_color(s):
         """Devolve a cor HTML correspondente a cada nível de severidade."""
@@ -130,6 +148,111 @@ def build_html(data: dict) -> str:
           {subdomains_html}
         </div>"""
 
+    # ── Secção Security Headers ────────────────────────────────────────────────
+    # Tabela dos cabeçalhos de segurança avaliados + classificação A–F + fugas de info
+    # Só incluída se o módulo correu com sucesso
+    headers_html = ""
+    if headers and headers.get("status") == "success":
+        # Cor da classificação (mesma escala A–F da página Headers)
+        grade       = headers.get("grade", "")
+        grade_color = {"A": "#22c55e", "B": "#84cc16", "C": "#eab308",
+                       "D": "#f97316", "F": "#ef4444"}.get(grade, "#888")
+
+        # Uma linha por cabeçalho avaliado (presente/ausente + recomendação)
+        checked_rows = ""
+        for c in headers.get("checked", []):
+            present      = c.get("present")
+            status_txt   = "✓ Presente" if present else "✗ Ausente"
+            status_color = "#22c55e" if present else severity_color(c.get("severity", ""))
+            rec          = c.get("recommendation") or ""
+            rec_html     = f"<br><code>{html.escape(str(rec))}</code>" if rec else ""
+            checked_rows += f"""
+            <tr>
+              <td>{html.escape(str(c.get('header','')))}</td>
+              <td style="color:{status_color};font-weight:600">{status_txt}</td>
+              <td>{html.escape(str(c.get('severity','')))}</td>
+              <td>{html.escape(str(c.get('desc','')))}{rec_html}</td>
+            </tr>"""
+
+        # Cabeçalhos que revelam informação do servidor (Server, X-Powered-By, ...)
+        leaks_html = ""
+        if headers.get("info_leaks"):
+            leak_rows = "".join(
+                f"<tr><td>{html.escape(str(l.get('header','')))}</td><td><code>{html.escape(str(l.get('value','')))}</code></td></tr>"
+                for l in headers["info_leaks"]
+            )
+            leaks_html = f"""
+            <h3>Fugas de Informação</h3>
+            <table>
+              <thead><tr><th>Cabeçalho</th><th>Valor</th></tr></thead>
+              <tbody>{leak_rows}</tbody>
+            </table>"""
+
+        headers_html = f"""
+        <div class="section">
+          <h2>🛡 Security Headers</h2>
+          <p><strong>URL:</strong> <code>{html.escape(str(headers.get('final_url') or headers.get('url','')))}</code>
+             &nbsp;|&nbsp; <strong>HTTP:</strong> {int(headers.get('status_code', 0))}</p>
+          <p><strong>Classificação:</strong>
+             <span class="badge" style="background:{grade_color}22;color:{grade_color};border:1px solid {grade_color}44">
+               {html.escape(str(grade))} ({int(headers.get('present', 0))}/{int(headers.get('total', 0))})
+             </span></p>
+          <table>
+            <thead><tr><th>Cabeçalho</th><th>Estado</th><th>Severidade</th><th>Descrição / Recomendação</th></tr></thead>
+            <tbody>{checked_rows}</tbody>
+          </table>
+          {leaks_html}
+        </div>"""
+
+    # ── Secção TLS / Certificado ───────────────────────────────────────────────
+    # Alertas de estado (expirado / a expirar / não confiável / TLS obsoleto)
+    # + tabela com os detalhes do certificado. Só incluída em caso de sucesso.
+    tls_html = ""
+    if tls and tls.get("status") == "success":
+        alerts = []
+        if tls.get("expired"):
+            alerts.append(("#ff4444", "Certificado EXPIRADO"))
+        elif isinstance(tls.get("days_left"), int) and tls["days_left"] < 30:
+            alerts.append(("#ffaa00", f"Certificado expira em {int(tls['days_left'])} dias"))
+        if tls.get("not_yet_valid"):
+            alerts.append(("#ff4444", "Certificado ainda não é válido"))
+        if not tls.get("trusted"):
+            msg = tls.get("trust_error") or "cadeia de confiança não verificada"
+            alerts.append(("#ff4444", f"Certificado não confiável: {msg}"))
+        if str(tls.get("tls_version", "")) in ("SSLv2", "SSLv3", "TLSv1", "TLSv1.1"):
+            alerts.append(("#ffaa00", f"Versão TLS obsoleta ({tls.get('tls_version')})"))
+
+        alerts_html = "".join(
+            f'<div class="risk-card" style="border-left:4px solid {c}"><strong style="color:{c}">⚠ {html.escape(m)}</strong></div>'
+            for c, m in alerts
+        )
+
+        san_html = html.escape(", ".join(tls.get("san", []) or [])) or "—"
+        rows = [
+            ("Host",                    f"{html.escape(str(tls.get('host','')))}:{int(tls.get('port', 443))}"),
+            ("Versão TLS",              html.escape(str(tls.get("tls_version") or "—"))),
+            ("Cipher",                  html.escape(str(tls.get("cipher") or "—"))),
+            ("Common Name (CN)",        html.escape(str(tls.get("subject_cn") or "—"))),
+            ("Emissor",                 html.escape(f"{tls.get('issuer_cn','') or '—'} ({tls.get('issuer_org','') or '—'})")),
+            ("Válido de",               html.escape(str(tls.get("valid_from") or "—"))),
+            ("Válido até",              html.escape(str(tls.get("valid_until") or "—"))),
+            ("Dias até expirar",        html.escape(str(tls.get("days_left", "—")))),
+            ("Confiável",               "Sim" if tls.get("trusted") else "Não"),
+            ("Algoritmo de assinatura", html.escape(str(tls.get("signature_algorithm") or "—"))),
+            ("Nº de série",             html.escape(str(tls.get("serial") or "—"))),
+            (f"SANs ({int(tls.get('san_count', 0))})", san_html),
+        ]
+        rows_html = "".join(f"<tr><td><strong>{k}</strong></td><td>{v}</td></tr>" for k, v in rows)
+
+        tls_html = f"""
+        <div class="section">
+          <h2>🔒 TLS / Certificado</h2>
+          {alerts_html}
+          <table>
+            <tbody>{rows_html}</tbody>
+          </table>
+        </div>"""
+
     # ── Secção AI Analyzer ────────────────────────────────────────────────────
     # Gera os cards de risco, a lista de recomendações e os próximos passos
     ai_html = ""
@@ -163,6 +286,29 @@ def build_html(data: dict) -> str:
           <ul>{recs_html}</ul>
           <h3>Próximos Passos</h3>
           <ul>{passos_html}</ul>
+        </div>"""
+
+    # ── Secção Histórico de Execuções ─────────────────────────────────────────
+    # Apêndice com o registo das execuções dos módulos (vem do localStorage do
+    # browser). Só inclui os campos não sensíveis (sem o blob `data`).
+    history_html = ""
+    if history:
+        hist_rows = "".join(f"""
+            <tr>
+              <td>{html.escape(_fmt_ts(h.get('timestamp','')))}</td>
+              <td>{html.escape(str(h.get('type','')))}</td>
+              <td>{html.escape(str(h.get('target','')))}</td>
+              <td>{html.escape(str(h.get('summary','')))}</td>
+            </tr>""" for h in history)
+
+        history_html = f"""
+        <div class="section">
+          <h2>🕓 Histórico de Execuções</h2>
+          <p>Registo das últimas {len(history)} execuções de módulos nesta sessão do navegador.</p>
+          <table>
+            <thead><tr><th>Data/Hora</th><th>Módulo</th><th>Alvo</th><th>Resumo</th></tr></thead>
+            <tbody>{hist_rows}</tbody>
+          </table>
         </div>"""
 
     # ── Documento HTML completo ───────────────────────────────────────────────
@@ -245,7 +391,10 @@ def build_html(data: dict) -> str:
   <!-- Secções dos módulos — cada uma só aparece se tiver dados -->
   {scanner_html}
   {dns_html}
+  {headers_html}
+  {tls_html}
   {ai_html}
+  {history_html}
 
   <!-- Rodapé com versão e timestamp -->
   <div class="footer">

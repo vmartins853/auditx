@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { FileText, Download, Loader2, AlertTriangle, CheckCircle, User, Target, Calendar, AlignLeft, Scan, Globe, Brain } from 'lucide-react'
+import { FileText, Download, Loader2, AlertTriangle, CheckCircle, User, Target, Calendar, AlignLeft, Scan, Globe, Brain, Shield, Lock, History } from 'lucide-react'
 import { generateReport } from '../services/api'
+import { getHistory } from '../services/history'
 
 export default function Reports() {
   const [alvo,      setAlvo]      = useState('')
@@ -27,7 +28,36 @@ export default function Reports() {
 
   const scannerResult = loadFromStorage('scanner_result')
   const dnsResult     = loadFromStorage('dns_result')
+  const headersResult = loadFromStorage('headers_result')
+  const tlsResult     = loadFromStorage('tls_result')
   const aiResult      = loadFromStorage('ai_result')
+
+  // Normaliza um alvo para comparação: minúsculas, sem esquema (http://),
+  // sem porta nem caminho, sem barra final. Assim "https://Exemplo.com/x:443"
+  // e "exemplo.com" passam a comparar como iguais.
+  function normalizeTarget(t) {
+    return String(t || '')
+      .toLowerCase().trim()
+      .replace(/^https?:\/\//, '')   // remove o esquema
+      .replace(/[/:].*$/, '')        // remove porta e caminho
+      .replace(/\/$/, '')            // remove barra final
+  }
+
+  // O histórico vive no localStorage (persiste entre sessões) — ao contrário dos
+  // resultados dos módulos, não expira. Guardamos só os campos não sensíveis
+  // (sem o blob `data`) para manter o payload leve.
+  const allHistory = getHistory().map(({ timestamp, type, target, summary }) => ({ timestamp, type, target, summary }))
+
+  // Filtra o histórico pelo alvo do relatório: só entram execuções do mesmo alvo
+  // (correspondência exata ou de subdomínio). Sem alvo preenchido ainda não há
+  // correspondência possível, por isso a lista fica vazia.
+  const alvoKey = normalizeTarget(alvo)
+  const historyEntries = alvoKey
+    ? allHistory.filter(h => {
+        const hk = normalizeTarget(h.target)
+        return hk && (hk === alvoKey || hk.endsWith('.' + alvoKey) || alvoKey.endsWith('.' + hk))
+      })
+    : []
 
   async function handleGenerate() {
     if (!alvo.trim()) {
@@ -47,7 +77,10 @@ export default function Reports() {
         descricao,
         scanner:     scannerResult || null,
         dns:         dnsResult     || null,
+        headers:     headersResult || null,
+        tls:         tlsResult     || null,
         ai_analysis: aiResult      || null,
+        history:     historyEntries.length ? historyEntries : null,
       }
 
       const res = await generateReport(payload)
@@ -72,7 +105,11 @@ export default function Reports() {
 
   const hasScanner = !!scannerResult
   const hasDNS     = !!dnsResult
+  const hasHeaders = !!headersResult
+  const hasTLS     = !!tlsResult
   const hasAI      = !!aiResult
+  const hasHistory = historyEntries.length > 0
+  const hasAny     = hasScanner || hasDNS || hasHeaders || hasTLS || hasAI || hasHistory
 
   return (
     <div className="p-8 max-w-3xl">
@@ -108,14 +145,39 @@ export default function Reports() {
               : <span className="text-xs font-mono text-slate-600 ml-auto">Sem dados — executa o DNS Recon primeiro</span>}
           </div>
           <div className="flex items-center gap-3">
+            <Shield className="w-4 h-4 shrink-0 text-emerald-400" />
+            <span className="font-mono text-xs text-slate-300">Security Headers</span>
+            {hasHeaders
+              ? <span className="text-xs font-mono text-green-400 ml-auto">✓ Nota {headersResult.grade} ({headersResult.present}/{headersResult.total})</span>
+              : <span className="text-xs font-mono text-slate-600 ml-auto">Sem dados — executa o Security Headers primeiro</span>}
+          </div>
+          <div className="flex items-center gap-3">
+            <Lock className="w-4 h-4 shrink-0 text-cyan-400" />
+            <span className="font-mono text-xs text-slate-300">TLS Inspector</span>
+            {hasTLS
+              ? <span className="text-xs font-mono text-green-400 ml-auto">✓ {tlsResult.host} ({tlsResult.tls_version})</span>
+              : <span className="text-xs font-mono text-slate-600 ml-auto">Sem dados — executa o TLS Inspector primeiro</span>}
+          </div>
+          <div className="flex items-center gap-3">
             <Brain className="w-4 h-4 shrink-0 text-purple-400" />
             <span className="font-mono text-xs text-slate-300">AI Analyzer</span>
             {hasAI
               ? <span className="text-xs font-mono text-green-400 ml-auto">✓ {aiResult.riscos?.length || 0} riscos identificados</span>
               : <span className="text-xs font-mono text-slate-600 ml-auto">Sem dados — executa o AI Analyzer primeiro</span>}
           </div>
+          <div className="flex items-center gap-3">
+            <History className="w-4 h-4 shrink-0 text-slate-400" />
+            <span className="font-mono text-xs text-slate-300">Histórico de Execuções</span>
+            {hasHistory
+              ? <span className="text-xs font-mono text-green-400 ml-auto">✓ {historyEntries.length} entradas para este alvo</span>
+              : allHistory.length === 0
+                ? <span className="text-xs font-mono text-slate-600 ml-auto">Sem registos no histórico</span>
+                : alvoKey
+                  ? <span className="text-xs font-mono text-slate-600 ml-auto">Sem registos para este alvo ({allHistory.length} no total)</span>
+                  : <span className="text-xs font-mono text-slate-600 ml-auto">Preenche o alvo para filtrar ({allHistory.length} no total)</span>}
+          </div>
         </div>
-        {!hasScanner && !hasDNS && !hasAI && (
+        {!hasAny && (
           <p className="text-xs font-mono text-yellow-400 mt-3">
             ⚠ Nenhum resultado detetado. Os dados dos módulos expiram após 30 minutos de inatividade.
           </p>
