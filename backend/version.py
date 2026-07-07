@@ -5,4 +5,4 @@
 # report_generator.py (rodapé do relatório), para que a versão exista num só sítio.
 # ─────────────────────────────────────────────────────────────────────────────
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
